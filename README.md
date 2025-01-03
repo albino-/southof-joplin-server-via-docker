@@ -1,4 +1,4 @@
-# southof-joplin-docker-attempt
+# southof-joplin-server-via-docker
 
 Look, you can't think that docker being your ownly mechanism for deploying
 things is a GOOD IDEA.  It's NOT!   It's a terrible idea.
