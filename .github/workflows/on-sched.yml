@@ -1,0 +1,66 @@
+name: ci-on-sched
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron: "0 2 * * *"
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+permissions:
+  contents: write #needed for pushing git tag back to repo
+
+defaults:
+  run:
+    working-directory: .
+
+jobs:
+  southof-joplin-server-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: pre-reqs
+        run: sudo ./1-pre-reqs.sh
+
+      - name: joplin-server-version
+        run: ./2-joplin-server-version.sh
+
+      - name: check tag
+        uses: mukunku/tag-exists-action@v1.6.0
+        id: check-tag
+        with:
+          tag: 'v${{env.GHCI_JOPLIN_VER}}'
+
+      - name: joplin-server-make-artifact
+        run: ./3-joplin-server-make-artifact.sh
+        id: artifact-step
+        if: steps.check-tag.outputs.exists == 'false'
+
+      - name: Create tag
+        uses: actions/github-script@v5
+        if: steps.artifact-step.conclusion == 'success'
+        with:
+          script: |
+            github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: 'refs/tags/v${{env.GHCI_JOPLIN_VER}}',
+              sha: context.sha
+            })
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        if: steps.artifact-step.conclusion == 'success'
+        with:
+          tag_name: 'v${{env.GHCI_JOPLIN_VER}}'
+          files: |
+            southof-joplin-*.tar.xz
+            #southof-joplin-*.tar.gz
